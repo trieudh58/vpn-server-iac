@@ -122,10 +122,11 @@ resource "oci_core_subnet" "vpn_subnet" {
 
 # Compute Instance
 resource "oci_core_instance" "vpn_server" {
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
   compartment_id      = var.compartment_ocid
   display_name        = "vpn-server"
   shape               = var.instance_shape
+  fault_domain        = var.fault_domain
 
   shape_config {
     memory_in_gbs = 1

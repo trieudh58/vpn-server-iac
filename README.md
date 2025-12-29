@@ -50,6 +50,8 @@ cp terraform.tfvars.example terraform.tfvars
 | `region` | Choose from OCI regions | `us-ashburn-1` |
 | `compartment_ocid` | Same as tenancy_ocid (for root) | `ocid1.tenancy.oc1..aaa...` |
 | `ssh_public_key` | Your SSH public key (see [SSH-KEY-SETUP.md](SSH-KEY-SETUP.md)) | `ssh-ed25519 AAA...` |
+| `availability_domain_index` | (Optional) Index: 0, 1, or 2 | `0` (default) |
+| `fault_domain` | (Optional) FAULT-DOMAIN-1/2/3 | `null` (default, auto) |
 
 ### 4. Deploy
 
@@ -221,3 +223,29 @@ Oracle Cloud Infrastructure adds a default iptables REJECT rule that blocks all 
 3. Persists these rules across reboots using `netfilter-persistent`
 
 This ensures WireGuard handshakes succeed without manual intervention. For more details, see [WIREGUARD-TROUBLESHOOTING.md](WIREGUARD-TROUBLESHOOTING.md).
+
+### Availability Domain and Fault Domain Configuration
+
+**Availability Domains (ADs):**
+- OCI regions have 1-3 availability domains (isolated data centers)
+- Use `availability_domain_index` to choose which AD to deploy to (0, 1, or 2)
+- Default: `0` (first available AD)
+- Useful for: Regional distribution, capacity availability
+
+**Fault Domains (FDs):**
+- Each AD has 3 fault domains for additional isolation
+- Use `fault_domain` to specify: `FAULT-DOMAIN-1`, `FAULT-DOMAIN-2`, or `FAULT-DOMAIN-3`
+- Default: `null` (OCI assigns automatically)
+- Useful for: High availability, spreading instances to avoid hardware failures
+
+**Example configuration in terraform.tfvars:**
+```hcl
+# Deploy to second availability domain, specific fault domain
+availability_domain_index = 1
+fault_domain = "FAULT-DOMAIN-2"
+```
+
+**When to use:**
+- Multiple instances: Spread across different ADs/FDs for redundancy
+- Capacity issues: Try different ADs if your preferred AD is full
+- High availability: Explicit FD control for HA architectures

@@ -8,3 +8,12 @@ private_key_path = "~/.oci/oci_api_key.pem"
 region           = "us-ashburn-1"
 compartment_ocid = "ocid1.compartment.oc1..example"
 ssh_public_key   = "ssh-rsa AAAAB3NzaC1yc2E... your-email@example.com"
+
+# Optional: Specify availability domain index (0, 1, or 2)
+# Default: 0 (first availability domain)
+# availability_domain_index = 0
+
+# Optional: Specify fault domain for high availability
+# Options: "FAULT-DOMAIN-1", "FAULT-DOMAIN-2", "FAULT-DOMAIN-3"
+# Default: null (automatic assignment by OCI)
+# fault_domain = "FAULT-DOMAIN-1"

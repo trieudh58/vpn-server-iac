@@ -32,11 +32,23 @@ variable "compartment_ocid" {
 variable "instance_shape" {
   description = "The shape of the instance"
   type        = string
-  default     = "VM.Standard.E2.1.Micro"
-  # default     = "VM.Standard.A1.Flex"
+  # default     = "VM.Standard.E2.1.Micro"
+  default     = "VM.Standard.A1.Flex"
 }
 
 variable "ssh_public_key" {
   description = "SSH public key for instance access"
   type        = string
+}
+
+variable "availability_domain_index" {
+  description = "Index of the availability domain to use (0, 1, or 2)"
+  type        = number
+  default     = 0
+}
+
+variable "fault_domain" {
+  description = "Fault domain to use for the instance (FAULT-DOMAIN-1, FAULT-DOMAIN-2, or FAULT-DOMAIN-3). Leave null for automatic assignment."
+  type        = string
+  default     = null
 }
