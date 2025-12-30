@@ -60,34 +60,51 @@ fi
 # Check 5: OCI iptables REJECT rule fixed
 REJECT_LINE=$(sudo iptables -L INPUT --line-numbers | grep -m 1 "REJECT.*icmp-host-prohibited" | awk '{print $1}')
 if [ -n "$REJECT_LINE" ]; then
-    WG_LINE=$(sudo iptables -L INPUT --line-numbers | grep "51820" | awk '{print $1}')
-    if [ -n "$WG_LINE" ] && [ "$WG_LINE" -lt "$REJECT_LINE" ]; then
-        pass "WireGuard rule inserted before OCI REJECT rule (line $WG_LINE < $REJECT_LINE)"
+    # Get all WireGuard/OpenVPN rule line numbers
+    WG_LINES=$(sudo iptables -L INPUT --line-numbers | grep -E "(51820|1194)" | awk '{print $1}' | tr '\n' ' ')
+    # Get the first (lowest) WireGuard rule line number
+    FIRST_WG_LINE=$(sudo iptables -L INPUT --line-numbers | grep -E "(51820|1194)" | head -1 | awk '{print $1}')
+
+    if [ -n "$FIRST_WG_LINE" ] && [ "$FIRST_WG_LINE" -lt "$REJECT_LINE" ]; then
+        pass "VPN rules inserted before OCI REJECT rule (lines: $WG_LINES < $REJECT_LINE)"
     else
-        fail "WireGuard rule NOT before OCI REJECT rule"
-        echo "  REJECT at line: $REJECT_LINE, WireGuard at line: ${WG_LINE:-not found}"
+        fail "VPN rules NOT before OCI REJECT rule"
+        echo "  REJECT at line: $REJECT_LINE, VPN rules at lines: ${WG_LINES:-not found}"
         echo "  Fix: sudo iptables -I INPUT $REJECT_LINE -p udp --dport 51820 -j ACCEPT"
+        echo "       sudo iptables -I INPUT $REJECT_LINE -p tcp --dport 1194 -j ACCEPT"
+        echo "       sudo iptables -I INPUT $REJECT_LINE -p udp --dport 1194 -j ACCEPT"
     fi
 else
     warn "No OCI REJECT rule found (might not be using OCI Ubuntu image)"
 fi
 
-# Check 6: UFW status
-if sudo ufw status | grep -q "51820/udp.*ALLOW"; then
-    pass "UFW allows WireGuard port 51820"
+# Check 6: Firewall status (using iptables directly)
+WG_IPTABLES=$(sudo iptables -L INPUT -n | grep "51820" | wc -l)
+if [ "$WG_IPTABLES" -gt 0 ]; then
+    pass "iptables allows WireGuard port 51820"
 else
-    fail "UFW not configured for WireGuard"
-    echo "  Try: sudo ufw allow 51820/udp"
+    fail "iptables not configured for WireGuard"
+    echo "  Try: sudo iptables -A INPUT -p udp --dport 51820 -j ACCEPT"
 fi
 
-# Check 7: NAT/MASQUERADE rules
+# Check 7: FORWARD rules for WireGuard
+FORWARD_WG=$(sudo iptables -L FORWARD -n | grep "wg0" | wc -l)
+if [ "$FORWARD_WG" -ge 2 ]; then
+    pass "FORWARD rules configured for WireGuard interface"
+else
+    fail "FORWARD rules missing for WireGuard"
+    echo "  Try: sudo iptables -A FORWARD -i wg0 -j ACCEPT"
+    echo "       sudo iptables -A FORWARD -o wg0 -j ACCEPT"
+fi
+
+# Check 8: NAT/MASQUERADE rules
 if sudo iptables -t nat -L POSTROUTING -n | grep -q "MASQUERADE"; then
     pass "NAT MASQUERADE rule exists"
 else
     fail "NAT MASQUERADE rule missing"
 fi
 
-# Check 8: Server keys exist
+# Check 9: Server keys exist
 if [ -f /etc/wireguard/server_public.key ] && [ -f /etc/wireguard/server_private.key ]; then
     pass "WireGuard server keys exist"
     echo ""
@@ -96,14 +113,14 @@ else
     fail "WireGuard server keys not found"
 fi
 
-# Check 9: Helper script exists
+# Check 10: Helper script exists
 if [ -x /usr/local/bin/add-wireguard-client ]; then
     pass "add-wireguard-client helper script installed"
 else
     fail "add-wireguard-client helper script not found"
 fi
 
-# Check 10: Cloud-init completed
+# Check 11: Cloud-init completed
 if [ -f /var/log/wireguard-setup-complete ]; then
     pass "Cloud-init setup completed successfully"
 else

@@ -32,8 +32,8 @@ variable "compartment_ocid" {
 variable "instance_shape" {
   description = "The shape of the instance"
   type        = string
-  # default     = "VM.Standard.E2.1.Micro"
-  default     = "VM.Standard.A1.Flex"
+  default     = "VM.Standard.E2.1.Micro"
+  # default     = "VM.Standard.A1.Flex"
 }
 
 variable "ssh_public_key" {

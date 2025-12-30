@@ -5,7 +5,6 @@ package_upgrade: true
 packages:
   - wireguard
   - qrencode
-  - ufw
   - iptables
   - iptables-persistent
   - netfilter-persistent
@@ -32,11 +31,7 @@ runcmd:
     Address = 10.8.0.1/24
     ListenPort = 51820
     PrivateKey = SERVER_PRIVATE_KEY
-    PostUp = iptables -A FORWARD -i wg0 -j ACCEPT
-    PostUp = iptables -A FORWARD -o wg0 -j ACCEPT
     PostUp = iptables -t nat -A POSTROUTING -o ens3 -j MASQUERADE
-    PostDown = iptables -D FORWARD -i wg0 -j ACCEPT
-    PostDown = iptables -D FORWARD -o wg0 -j ACCEPT
     PostDown = iptables -t nat -D POSTROUTING -o ens3 -j MASQUERADE
 
     # Add client configurations below
@@ -73,18 +68,27 @@ runcmd:
       echo "No REJECT rule found, appended WireGuard/OpenVPN rules"
     fi
 
+    # Add FORWARD rules before any REJECT rule in FORWARD chain
+    FORWARD_REJECT_LINE=$(iptables -L FORWARD --line-numbers | grep -m 1 "REJECT.*icmp-host-prohibited" | awk '{print $1}')
+    if [ -n "$FORWARD_REJECT_LINE" ]; then
+      iptables -I FORWARD $FORWARD_REJECT_LINE -i wg0 -j ACCEPT -m comment --comment "WireGuard input"
+      iptables -I FORWARD $FORWARD_REJECT_LINE -o wg0 -j ACCEPT -m comment --comment "WireGuard output"
+      echo "Inserted FORWARD rules before REJECT rule at line $FORWARD_REJECT_LINE"
+    else
+      # If no REJECT rule, just append the rules
+      iptables -A FORWARD -i wg0 -j ACCEPT -m comment --comment "WireGuard input"
+      iptables -A FORWARD -o wg0 -j ACCEPT -m comment --comment "WireGuard output"
+      echo "No FORWARD REJECT rule found, appended FORWARD rules"
+    fi
+
     # Save iptables rules to persist across reboots
     netfilter-persistent save
 
     # Also save using iptables-save as backup
     iptables-save > /etc/iptables/rules.v4
 
-  # Configure firewall
-  - ufw --force enable
-  - ufw allow 22/tcp
-  - ufw allow 51820/udp
-  - ufw allow 1194/tcp
-  - ufw allow 1194/udp
+  # Firewall rules are handled via iptables above
+  # SSH access is allowed via the iptables INPUT rules for port 22
 
   # Enable and start WireGuard
   - systemctl enable wg-quick@wg0
