@@ -20,3 +20,5 @@ Thumbs.db
 # SSH keys
 *.pem
 *.key
+
+.claude/settings.local.json
