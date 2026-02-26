@@ -136,7 +136,7 @@ resource "oci_core_instance" "vpn_server" {
   create_vnic_details {
     subnet_id        = oci_core_subnet.vpn_subnet.id
     display_name     = "vpn-server-vnic"
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   source_details {
@@ -150,4 +150,32 @@ resource "oci_core_instance" "vpn_server" {
   }
 
   preserve_boot_volume = false
+
+  lifecycle {
+    ignore_changes = [source_details]
+  }
+}
+
+# Get the VNIC attachment for the instance
+data "oci_core_vnic_attachments" "vpn_vnic_attachments" {
+  compartment_id = var.compartment_ocid
+  instance_id    = oci_core_instance.vpn_server.id
+}
+
+# Get the VNIC details
+data "oci_core_vnic" "vpn_vnic" {
+  vnic_id = data.oci_core_vnic_attachments.vpn_vnic_attachments.vnic_attachments[0].vnic_id
+}
+
+# Get the private IP for the VNIC
+data "oci_core_private_ips" "vpn_private_ips" {
+  vnic_id = data.oci_core_vnic.vpn_vnic.id
+}
+
+# Reserved (static) Public IP
+resource "oci_core_public_ip" "vpn_public_ip" {
+  compartment_id = var.compartment_ocid
+  display_name   = "vpn-server-public-ip"
+  lifetime       = "RESERVED"
+  private_ip_id  = data.oci_core_private_ips.vpn_private_ips.private_ips[0].id
 }
